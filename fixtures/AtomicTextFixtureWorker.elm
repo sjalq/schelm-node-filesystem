@@ -1,7 +1,9 @@
 port module AtomicTextFixtureWorker exposing (main)
 
+import Json.Decode as Decode
 import Json.Encode as Encode
 import Platform
+import Process
 import Schelm.Node.FileSystem.AtomicTextFixture as Fixture
 import Task
 
@@ -9,38 +11,71 @@ import Task
 port report : Encode.Value -> Cmd msg
 
 
+port fixtureEventIn : (Decode.Value -> msg) -> Sub msg
+
+
+port phase : Encode.Value -> Cmd msg
+
+
+port fixtureAckIn : (Decode.Value -> msg) -> Sub msg
+
+
+port actionOut : Encode.Value -> Cmd msg
+
+
+port ackAccepted : Encode.Value -> Cmd msg
+
+
 type Msg
-    = Finished (Result { phase : String, error : { kind : String, code : String, message : String }, residue : List String } { durability : String, stage : String, error : { kind : String, code : String, message : String }, residue : List String })
+    = Begin
+    | FixtureEvent Decode.Value
+    | FixtureAck Decode.Value
+    | Finished (Result RawFailure RawOutcome)
+
+
+type alias RawFailure =
+    { phase : String, error : { kind : String, code : String, message : String }, residue : List String }
+
+
+type alias RawOutcome =
+    { durability : String, stage : String, error : { kind : String, code : String, message : String }, residue : List String }
 
 
 type alias Flags =
     { root : String, segments : List String, text : String }
 
 
-main : Program Flags () Msg
+type alias Model =
+    { flags : Flags }
+
+
+main : Program Flags Model Msg
 main =
     Platform.worker
-        { init = \flags -> ( (), Task.attempt Finished (Fixture.replace flags.root flags.segments flags.text) )
+        { init = \flags -> ( { flags = flags }, Task.perform (always Begin) (Process.sleep 0) )
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = \_ -> Sub.batch [ fixtureEventIn FixtureEvent, fixtureAckIn FixtureAck ]
         }
 
 
-update : Msg -> () -> ( (), Cmd Msg )
-update (Finished result) model =
-    ( model
-    , report
-        (Encode.object
-            [ ( "ok"
-              , Encode.bool
-                    (case result of
-                        Ok _ ->
-                            True
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Begin ->
+            ( model, Task.attempt Finished (Fixture.replace model.flags.root model.flags.segments model.flags.text) )
 
-                        Err _ ->
-                            False
-                    )
-              )
-            ]
-        )
-    )
+        FixtureEvent value ->
+            ( model, phase value )
+
+        FixtureAck value ->
+            ( model, Cmd.batch [ ackAccepted value, actionOut value ] )
+
+        Finished result ->
+            ( model
+            , report
+                (Encode.object
+                    [ ( "kind", Encode.string "result" )
+                    , ( "ok", Encode.bool (Result.toMaybe result /= Nothing) )
+                    ]
+                )
+            )

@@ -107,3 +107,18 @@ test("one logical transaction resolves once", async () => {
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(settled, 1);
 });
+
+test("temp and parent descriptors each receive at most one close attempt across faults", async () => {
+  const plans = [ {}, { write:{error:"EIO"} }, { fileSync:{error:"EIO"} }, { tempClose:{error:"EIO"} }, { rename:{error:"EIO"} }, { dirSync:{error:"EIO"} }, { dirClose:{error:"EIO"} } ];
+  for (const plan of plans) {
+    const fake = makeFakeFs(plan); await run(opts(fake));
+    assert.ok(fake.calls.filter(x=>x.name==="tempClose").length <= 1, JSON.stringify(plan));
+    assert.ok(fake.calls.filter(x=>x.name==="dirClose").length <= 1, JSON.stringify(plan));
+  }
+});
+
+test("observer throws become one typed failure and do not reject transaction promise", async () => {
+  const fake=makeFakeFs();let rejected=false;
+  const out=await run({ ...opts(fake), observe:async()=>{throw new Error("observer boom");} }).catch(()=>{rejected=true;});
+  assert.equal(rejected,false);assert.equal(out.ok,false);assert.equal(out.error.message,"observer boom");
+});

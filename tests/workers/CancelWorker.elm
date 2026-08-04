@@ -1,5 +1,6 @@
 port module CancelWorker exposing (main)
 
+import Json.Decode as Decode
 import Json.Encode as Encode
 import Platform
 import Process
@@ -13,9 +14,26 @@ port report : Encode.Value -> Cmd msg
 port command : (String -> msg) -> Sub msg
 
 
+port fixtureEventIn : (Decode.Value -> msg) -> Sub msg
+
+
+port phase : Encode.Value -> Cmd msg
+
+
+port fixtureAckIn : (Decode.Value -> msg) -> Sub msg
+
+
+port actionOut : Encode.Value -> Cmd msg
+
+
+port ackAccepted : Encode.Value -> Cmd msg
+
+
 type Msg
     = Spawned (Result Never (Process.Id Msg))
     | Command String
+    | FixtureEvent Decode.Value
+    | FixtureAck Decode.Value
     | Killed
     | UnexpectedCompletion
 
@@ -33,7 +51,7 @@ main =
     Platform.worker
         { init = init
         , update = update
-        , subscriptions = always (command Command)
+        , subscriptions = \_ -> Sub.batch [ command Command, fixtureEventIn FixtureEvent, fixtureAckIn FixtureAck ]
         }
 
 
@@ -70,6 +88,12 @@ update msg model =
 
         Command _ ->
             ( model, Cmd.none )
+
+        FixtureEvent value ->
+            ( model, phase value )
+
+        FixtureAck value ->
+            ( model, Cmd.batch [ ackAccepted value, actionOut value ] )
 
         Killed ->
             ( model, report (Encode.string "killed") )

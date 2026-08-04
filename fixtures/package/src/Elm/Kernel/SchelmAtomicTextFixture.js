@@ -1,4 +1,4 @@
-/* generated; canonical-sha256 3abee43f9db5d81b454bd046f7229ff3ffe714ebb41472c91b7b71390172897e; fixture=true */
+/* generated; canonical-sha256 53cb45d7983e43d20c3f9d065c0d2b13fe865ce55a44c5e1278f0b02f4146216; fixture=true */
 /*
 import Elm.Kernel.List exposing (fromArray, toArray)
 import Elm.Kernel.Scheduler exposing (binding, fail, succeed)
@@ -15,9 +15,10 @@ async function schelmAtomicTextTransaction(options) {
   let tempPath = null;
   let renameAcknowledged = false;
   let phase = "validating";
-  /* @fixture */ let sequence = 0;
+  /* @fixture */ let localSequence = 0;
+  /* @fixture */ const nextSequence = options.nextSequence || function() { localSequence += 1; return localSequence; };
   /* @fixture */ const observe = async (name, facts = {}) => {
-  /* @fixture */   sequence += 1;
+  /* @fixture */   const sequence = nextSequence();
   /* @fixture */   const action = await options.observe({ operationId: options.operationId || "operation", sequence, phase: name, facts });
   /* @fixture */   if (action && action.type === "ReturnError") throw Object.assign(new Error(action.code || "fixture error"), { code: action.code || "EIO" });
   /* @fixture */   if (action && action.type === "NeverCallback") await new Promise(() => {});
@@ -201,13 +202,21 @@ function $schelmOps() { return {
 }; }
 function $schelmHex() { return $crypto.randomBytes(16).toString("hex"); }
 
+function $schelmFixtureOps(base, observe, nextSequence, operationId) {
+  function event(phase, facts) { return observe({ operationId: operationId, sequence: nextSequence(), phase: phase, facts: facts || {} }); }
+  return Object.assign({}, base, {
+    open: async function(p, flags, mode) { var handle = await base.open(p, flags, mode); if (flags !== "wx") return handle; var write = handle.write.bind(handle); handle.write = async function(buffer, offset, length, position) { await event("WriteDispatched", { offset: offset, length: length }); var result = await write(buffer, offset, length, position); await event("WritePhysicalComplete", { bytesWritten: result.bytesWritten }); await event("WriteCallbackDelivered", { bytesWritten: result.bytesWritten }); return result; }; return handle; },
+    rename: async function(from, to) { await event("RenameDispatched", { from: from, to: to }); await base.rename(from, to); await event("RenamePhysicalComplete", { from: from, to: to }); await event("RenameCallbackDelivered", { from: from, to: to }); }
+  });
+}
+
 function $schelmError(error) { return { __$kind: error.kind, __$code: error.code, __$message: error.message }; }
 function $schelmResult(result) { return { __$durability: result.durability, __$stage: result.stage, __$error: $schelmError(result.error), __$residue: __List_fromArray(result.residue) }; }
 function $schelmFailure(result) { return { __$phase: result.phase, __$error: $schelmError(result.error), __$residue: __List_fromArray(result.residue) }; }
 var _SchelmAtomicTextFixture_replace = F3(function(root, parts, text) {
   return __Scheduler_binding(function(callback) {
     var control = { abandoned: false };
-    schelmAtomicTextTransaction({ ops: $schelmOps(), root: root, segments: __List_toArray(parts), text: text, randomHex: $schelmHex, control: control, operationId: "fixture", observe: globalThis.__SCHELM_ATOMIC_TEXT_FIXTURE_OBSERVE })
+    var nextSequence = (function() { var sequence = 0; return function() { return ++sequence; }; })(); var observe = globalThis.__SCHELM_ATOMIC_TEXT_FIXTURE_OBSERVE; schelmAtomicTextTransaction({ ops: $schelmFixtureOps($schelmOps(), observe, nextSequence, "fixture"), root: root, segments: __List_toArray(parts), text: text, randomHex: $schelmHex, control: control, operationId: "fixture", nextSequence: nextSequence, observe: observe })
       .then(function(result) { if (!control.abandoned) callback(result.ok ? __Scheduler_succeed($schelmResult(result)) : __Scheduler_fail($schelmFailure(result))); })
       .catch(function(error) { if (!control.abandoned) callback(__Scheduler_fail($schelmFailure({ phase: "validating", error: { kind: "unknown-failure", code: "", message: String(error).slice(0, 1024) }, residue: [] }))); });
     return function() { control.abandoned = true; };

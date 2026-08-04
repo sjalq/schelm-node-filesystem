@@ -13,3 +13,4 @@ const jobs=[
 ];
 for(const job of jobs)for(const mode of ["debug","optimize"]){const out=path.join(root,"build",`${job.stem}-${mode}.js`);const args=["make",job.entry,"--output",out];if(mode==="optimize")args.push("--optimize");cp.execFileSync(compiler,args,{cwd:job.cwd,stdio:"inherit",env:{...process.env,ELM_HOME:process.env.SCHELM_ELM_HOME||path.join(root,"build/elm-home")}});}
 cp.execFileSync(process.execPath,["tests/run-generated-workers.cjs"],{cwd:root,stdio:"inherit"});
+cp.execFileSync(process.execPath,["tests/perf/generated-worker-gate.cjs"],{cwd:root,stdio:"inherit"});

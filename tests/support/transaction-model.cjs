@@ -1,21 +1,10 @@
 "use strict";
 
-const phases = ["open", "write", "fileSync", "tempClose", "rename", "parentOpen", "dirSync", "dirClose"];
-function expected(command) {
-  const fail = command.fail;
-  const renameAck = !fail || phases.indexOf(fail) > phases.indexOf("rename");
-  const content = renameAck ? "new" : "old";
-  if (!fail) return { ok: true, durability: "durable", content };
-  if (fail === "parentOpen") return { ok: true, durability: "unknown", stage: "opening-parent", content };
-  if (fail === "dirSync") return { ok: true, durability: "unknown", stage: "syncing-parent", content };
-  if (fail === "dirClose") return { ok: true, durability: "durable", content, parentResidue: true };
-  return { ok: false, content };
-}
-function shrink(command) {
-  const candidates = [];
-  if (command.payload.length > 1) candidates.push({ ...command, payload: command.payload.slice(0, Math.ceil(command.payload.length / 2)) });
-  if (command.shortWrite && command.shortWrite > 1) candidates.push({ ...command, shortWrite: 1 });
-  if (command.fail) candidates.push({ ...command, payload: "x" });
-  return candidates;
-}
-module.exports = { expected, shrink, phases };
+const operationOrder=["open","write","fileSync","tempClose","rename","parentOpen","dirSync","dirClose"];
+function initial(){return{phase:"validating",cancelled:false,temp:{physical:false,ack:false,fd:false,closeAttempts:0},rename:{dispatched:false,physical:false,ack:false},parent:{fd:false,syncAck:false,closeAttempts:0},destination:"old",notifications:0,residue:[]};}
+function apply(state,event){const s=structuredClone(state);s.phase=event.type;if(event.type==="Cancel")s.cancelled=true;if(event.type==="TempOpenPhysical")s.temp.physical=true;if(event.type==="TempOpenAck"){s.temp.ack=true;s.temp.fd=true;}if(event.type==="TempCloseAttempt")s.temp.closeAttempts+=1;if(event.type==="TempCloseAck")s.temp.fd=false;if(event.type==="RenameDispatch")s.rename.dispatched=true;if(event.type==="RenamePhysical"){s.rename.physical=true;s.destination="new";}if(event.type==="RenameAck")s.rename.ack=true;if(event.type==="ParentOpenAck")s.parent.fd=true;if(event.type==="ParentSyncAck")s.parent.syncAck=true;if(event.type==="ParentCloseAttempt")s.parent.closeAttempts+=1;if(event.type==="ParentCloseAck")s.parent.fd=false;if(event.type==="Notify"&&!s.cancelled)s.notifications+=1;s.residue=[];if(s.temp.physical&&!s.rename.physical)s.residue.push("temp");if(s.temp.fd)s.residue.push("temp-fd");if(s.parent.fd)s.residue.push("parent-fd");return s;}
+function runTrace(trace){return trace.reduce(apply,initial());}
+function expected(command){const fail=command.fail;const renameAck=!fail||operationOrder.indexOf(fail)>operationOrder.indexOf("rename");const content=renameAck?"new":"old";if(!fail)return{ok:true,durability:"durable",content};if(fail==="parentOpen")return{ok:true,durability:"unknown",stage:"opening-parent",content};if(fail==="dirSync")return{ok:true,durability:"unknown",stage:"syncing-parent",content};if(fail==="dirClose")return{ok:true,durability:"durable",content,parentResidue:true};return{ok:false,content};}
+function directShrinks(command){const xs=[];if(command.payload.length>1)xs.push({...command,payload:command.payload.slice(0,Math.ceil(command.payload.length/2))});if(command.shortWrite>1)xs.push({...command,shortWrite:1});if(command.faults&&command.faults.length>1)for(let i=0;i<command.faults.length;i++)xs.push({...command,faults:command.faults.filter((_,j)=>i!==j)});if(command.fail)xs.push({...command,payload:"x"});return xs;}
+async function recursiveShrink(command,stillFails){let current=command;for(;;){let smaller=null;for(const candidate of directShrinks(current))if(await stillFails(candidate)){smaller=candidate;break;}if(!smaller)return current;current=smaller;}}
+module.exports={initial,apply,runTrace,expected,directShrinks,recursiveShrink,operationOrder};

@@ -10,9 +10,10 @@ async function schelmAtomicTextTransaction(options) {
   let tempPath = null;
   let renameAcknowledged = false;
   let phase = "validating";
-  /* @fixture */ let sequence = 0;
+  /* @fixture */ let localSequence = 0;
+  /* @fixture */ const nextSequence = options.nextSequence || function() { localSequence += 1; return localSequence; };
   /* @fixture */ const observe = async (name, facts = {}) => {
-  /* @fixture */   sequence += 1;
+  /* @fixture */   const sequence = nextSequence();
   /* @fixture */   const action = await options.observe({ operationId: options.operationId || "operation", sequence, phase: name, facts });
   /* @fixture */   if (action && action.type === "ReturnError") throw Object.assign(new Error(action.code || "fixture error"), { code: action.code || "EIO" });
   /* @fixture */   if (action && action.type === "NeverCallback") await new Promise(() => {});
