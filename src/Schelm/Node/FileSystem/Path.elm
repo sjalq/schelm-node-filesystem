@@ -1,33 +1,39 @@
 module Schelm.Node.FileSystem.Path exposing
-    ( CooperativeRoot
-    , PathError(..)
-    , RelativeFile
-    , RootError(..)
-    , cooperativeRoot
-    , relativeFile
-    , relativeSegments
-    , rootString
+    ( CooperativeRoot, RelativeFile, RootError(..), PathError(..)
+    , cooperativeRoot, relativeFile, relativeSegments, rootString
     )
 
 {-| Pure cooperative path values. These prevent accidental path mixing; they are
 not authorization and do not defend against a hostile local process.
+
+@docs CooperativeRoot, RelativeFile, RootError, PathError
+@docs cooperativeRoot, relativeFile, relativeSegments, rootString
+
 -}
 
 
+{-| CooperativeRoot is a validated cooperative path value or operation.
+-}
 type CooperativeRoot
     = CooperativeRoot String
 
 
+{-| RootError is a validated cooperative path value or operation.
+-}
 type RootError
     = RootMustBeAbsolute
     | RootContainsNul
     | RootHasTrailingSeparator
 
 
+{-| RelativeFile is a validated cooperative path value or operation.
+-}
 type RelativeFile
     = RelativeFile (List String)
 
 
+{-| PathError is a validated cooperative path value or operation.
+-}
 type PathError
     = EmptyPath
     | EmptySegment
@@ -37,6 +43,8 @@ type PathError
     | ContainsSeparator
 
 
+{-| cooperativeRoot is a validated cooperative path value or operation.
+-}
 cooperativeRoot : String -> Result RootError CooperativeRoot
 cooperativeRoot raw =
     if String.contains "\u{0000}" raw then
@@ -52,6 +60,8 @@ cooperativeRoot raw =
         Ok (CooperativeRoot raw)
 
 
+{-| relativeFile is a validated cooperative path value or operation.
+-}
 relativeFile : List String -> Result PathError RelativeFile
 relativeFile parts =
     case parts of
@@ -95,11 +105,15 @@ validateSegment part =
         Ok ()
 
 
+{-| relativeSegments is a validated cooperative path value or operation.
+-}
 relativeSegments : RelativeFile -> List String
 relativeSegments (RelativeFile parts) =
     parts
 
 
+{-| rootString is a validated cooperative path value or operation.
+-}
 rootString : CooperativeRoot -> String
 rootString (CooperativeRoot raw) =
     raw

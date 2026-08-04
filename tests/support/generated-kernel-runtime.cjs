@@ -3,9 +3,9 @@ const fs=require("node:fs");const vm=require("node:vm");
 function loadKernel(file, symbol, observe){
   const source=fs.readFileSync(file,"utf8")+`\nmodule.exports.__entry=${symbol};`;
   const module={exports:{}};
-  const context={module,exports:module.exports,require,Buffer,console,setImmediate,clearImmediate,globalThis:{}};
+  const context={module,exports:module.exports,require,process,Buffer,console,setImmediate,clearImmediate,globalThis:{}};
   context.globalThis=context;
-  if(observe)context.__SCHELM_ATOMIC_TEXT_FIXTURE_OBSERVE=observe;
+  if(observe)context.process.schelmFixtureObserver=observe;
   context.F3=fn=>function(a){return function(b){return function(c){return fn(a,b,c);};};};
   context.__List_toArray=list=>list;
   context.__List_fromArray=array=>array;

@@ -57,14 +57,14 @@ async function schelmAtomicTextTransaction(options) {
     const handle = tempHandle;
     tempHandle = null;
     residue.add("temp-fd");
-    try { await handle.close(); residue.delete("temp-fd"); } catch (_) {}
+    try { await handle.close(); residue.delete("temp-fd"); } catch (ignoredError) {}
   };
   const closeParentOnce = async () => {
     if (!parentHandle) return;
     const handle = parentHandle;
     parentHandle = null;
     residue.add("parent-fd");
-    try { await handle.close(); residue.delete("parent-fd"); } catch (_) {}
+    try { await handle.close(); residue.delete("parent-fd"); } catch (ignoredError) {}
   };
   const cleanupBeforeRename = async () => {
     await closeTempOnce();
@@ -73,7 +73,7 @@ async function schelmAtomicTextTransaction(options) {
         /* @fixture */ await observe("BeforeTempUnlink", { tempPath });
         await ops.unlink(tempPath); residue.delete("temp");
         /* @fixture */ await observe("AfterTempUnlinkAck", { tempPath });
-      } catch (_) {}
+      } catch (ignoredError) {}
     }
   };
 
@@ -179,7 +179,7 @@ async function schelmAtomicTextTransaction(options) {
     /* @fixture */ await observe("BeforeParentClose");
     const closingParent = parentHandle;
     parentHandle = null;
-    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (_) {}
+    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (ignoredError) {}
     return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();

@@ -1,8 +1,8 @@
-/* generated; canonical-sha256 53cb45d7983e43d20c3f9d065c0d2b13fe865ce55a44c5e1278f0b02f4146216; fixture=true */
 /*
 import Elm.Kernel.List exposing (fromArray, toArray)
 import Elm.Kernel.Scheduler exposing (binding, fail, succeed)
 */
+/* generated; canonical-sha256 3aedf63dde27f4332394f1cf8da2bb78c89b6a34aa740c04e134287c93770235; fixture=true */
 var $fs = require("node:fs");
 var $path = require("node:path");
 var $crypto = require("node:crypto");
@@ -62,14 +62,14 @@ async function schelmAtomicTextTransaction(options) {
     const handle = tempHandle;
     tempHandle = null;
     residue.add("temp-fd");
-    try { await handle.close(); residue.delete("temp-fd"); } catch (_) {}
+    try { await handle.close(); residue.delete("temp-fd"); } catch (ignoredError) {}
   };
   const closeParentOnce = async () => {
     if (!parentHandle) return;
     const handle = parentHandle;
     parentHandle = null;
     residue.add("parent-fd");
-    try { await handle.close(); residue.delete("parent-fd"); } catch (_) {}
+    try { await handle.close(); residue.delete("parent-fd"); } catch (ignoredError) {}
   };
   const cleanupBeforeRename = async () => {
     await closeTempOnce();
@@ -78,7 +78,7 @@ async function schelmAtomicTextTransaction(options) {
         /* @fixture */ await observe("BeforeTempUnlink", { tempPath });
         await ops.unlink(tempPath); residue.delete("temp");
         /* @fixture */ await observe("AfterTempUnlinkAck", { tempPath });
-      } catch (_) {}
+      } catch (ignoredError) {}
     }
   };
 
@@ -184,7 +184,7 @@ async function schelmAtomicTextTransaction(options) {
     /* @fixture */ await observe("BeforeParentClose");
     const closingParent = parentHandle;
     parentHandle = null;
-    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (_) {}
+    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (ignoredError) {}
     return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();
@@ -202,6 +202,7 @@ function $schelmOps() { return {
 }; }
 function $schelmHex() { return $crypto.randomBytes(16).toString("hex"); }
 
+var $schelmFixtureObserver = function(event) { return process["schelm" + "FixtureObserver"](event); };
 function $schelmFixtureOps(base, observe, nextSequence, operationId) {
   function event(phase, facts) { return observe({ operationId: operationId, sequence: nextSequence(), phase: phase, facts: facts || {} }); }
   return Object.assign({}, base, {
@@ -216,7 +217,7 @@ function $schelmFailure(result) { return { __$phase: result.phase, __$error: $sc
 var _SchelmAtomicTextFixture_replace = F3(function(root, parts, text) {
   return __Scheduler_binding(function(callback) {
     var control = { abandoned: false };
-    var nextSequence = (function() { var sequence = 0; return function() { return ++sequence; }; })(); var observe = globalThis.__SCHELM_ATOMIC_TEXT_FIXTURE_OBSERVE; schelmAtomicTextTransaction({ ops: $schelmFixtureOps($schelmOps(), observe, nextSequence, "fixture"), root: root, segments: __List_toArray(parts), text: text, randomHex: $schelmHex, control: control, operationId: "fixture", nextSequence: nextSequence, observe: observe })
+    var nextSequence = (function() { var sequence = 0; return function() { return ++sequence; }; })(); var observe = $schelmFixtureObserver; schelmAtomicTextTransaction({ ops: $schelmFixtureOps($schelmOps(), observe, nextSequence, "fixture"), root: root, segments: __List_toArray(parts), text: text, randomHex: $schelmHex, control: control, operationId: "fixture", nextSequence: nextSequence, observe: observe })
       .then(function(result) { if (!control.abandoned) callback(result.ok ? __Scheduler_succeed($schelmResult(result)) : __Scheduler_fail($schelmFailure(result))); })
       .catch(function(error) { if (!control.abandoned) callback(__Scheduler_fail($schelmFailure({ phase: "validating", error: { kind: "unknown-failure", code: "", message: String(error).slice(0, 1024) }, residue: [] }))); });
     return function() { control.abandoned = true; };

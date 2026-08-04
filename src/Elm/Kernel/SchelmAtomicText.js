@@ -1,8 +1,8 @@
-/* generated; canonical-sha256 53cb45d7983e43d20c3f9d065c0d2b13fe865ce55a44c5e1278f0b02f4146216; fixture=false */
 /*
 import Elm.Kernel.List exposing (fromArray, toArray)
 import Elm.Kernel.Scheduler exposing (binding, fail, succeed)
 */
+/* generated; canonical-sha256 3aedf63dde27f4332394f1cf8da2bb78c89b6a34aa740c04e134287c93770235; fixture=false */
 var $fs = require("node:fs");
 var $path = require("node:path");
 var $crypto = require("node:crypto");
@@ -53,21 +53,21 @@ async function schelmAtomicTextTransaction(options) {
     const handle = tempHandle;
     tempHandle = null;
     residue.add("temp-fd");
-    try { await handle.close(); residue.delete("temp-fd"); } catch (_) {}
+    try { await handle.close(); residue.delete("temp-fd"); } catch (ignoredError) {}
   };
   const closeParentOnce = async () => {
     if (!parentHandle) return;
     const handle = parentHandle;
     parentHandle = null;
     residue.add("parent-fd");
-    try { await handle.close(); residue.delete("parent-fd"); } catch (_) {}
+    try { await handle.close(); residue.delete("parent-fd"); } catch (ignoredError) {}
   };
   const cleanupBeforeRename = async () => {
     await closeTempOnce();
     if (tempPath && residue.has("temp")) {
       try {
         await ops.unlink(tempPath); residue.delete("temp");
-      } catch (_) {}
+      } catch (ignoredError) {}
     }
   };
 
@@ -157,7 +157,7 @@ async function schelmAtomicTextTransaction(options) {
     phase = "closing-parent";
     const closingParent = parentHandle;
     parentHandle = null;
-    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (_) {}
+    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (ignoredError) {}
     return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();

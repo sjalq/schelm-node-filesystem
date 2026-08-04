@@ -1,30 +1,11 @@
 module Schelm.Node.FileSystem.AtomicText exposing
-    ( Cleanup(..)
-    , CommitAcknowledgement(..)
-    , CooperativeRoot
-    , Durability(..)
-    , DurabilityStage(..)
-    , Error
-    , ErrorKind(..)
-    , FailurePhase(..)
-    , PathError(..)
-    , RelativeFile
-    , ReplaceFailure
-    , ReplaceResult(..)
-    , Residue(..)
-    , RootError(..)
-    , cleanupResidue
-    , cooperativeRoot
-    , errorCode
-    , errorKind
-    , errorMessage
-    , failureCleanup
-    , failureCommit
-    , failureError
-    , failurePhase
-    , relativeFile
-    , relativeSegments
-    , replace
+    ( CooperativeRoot, RelativeFile, RootError, PathError
+    , cooperativeRoot, relativeFile, relativeSegments
+    , ReplaceResult(..), ReplaceFailure, CommitAcknowledgement(..), Durability(..), DurabilityStage(..)
+    , Cleanup(..), Residue(..), FailurePhase(..), Error, ErrorKind(..)
+    , replace, cleanupResidue
+    , errorCode, errorKind, errorMessage
+    , failureCleanup, failureCommit, failureError, failurePhase
     )
 
 {-| A deliberately narrow Node 24/Linux API for replacing one complete UTF-8
@@ -32,13 +13,48 @@ text file. `CooperativeRoot` prevents accidental root mixing only. It is publicl
 mintable and is not a security boundary. The destination parent must remain at
 the same pathname, and exactly one process may write the destination, throughout
 an operation.
+
+@docs CooperativeRoot, RelativeFile, RootError, PathError
+@docs cooperativeRoot, relativeFile, relativeSegments
+@docs ReplaceResult, ReplaceFailure, CommitAcknowledgement, Durability, DurabilityStage
+@docs Cleanup, Residue, FailurePhase, Error, ErrorKind
+@docs replace, cleanupResidue
+@docs errorCode, errorKind, errorMessage
+@docs failureCleanup, failureCommit, failureError, failurePhase
+
 -}
 
 import Elm.Kernel.SchelmAtomicText
-import Schelm.Node.FileSystem.Path as Path exposing (CooperativeRoot, PathError(..), RelativeFile, RootError(..))
+import Schelm.Node.FileSystem.Path as Path
 import Task exposing (Task)
 
 
+{-| CooperativeRoot is part of the typed atomic replacement contract.
+-}
+type alias CooperativeRoot =
+    Path.CooperativeRoot
+
+
+{-| RelativeFile is part of the typed atomic replacement contract.
+-}
+type alias RelativeFile =
+    Path.RelativeFile
+
+
+{-| RootError is part of the typed atomic replacement contract.
+-}
+type alias RootError =
+    Path.RootError
+
+
+{-| PathError is part of the typed atomic replacement contract.
+-}
+type alias PathError =
+    Path.PathError
+
+
+{-| ReplaceResult is part of the typed atomic replacement contract.
+-}
 type ReplaceResult
     = RenameAcknowledged
         { durability : Durability
@@ -46,33 +62,45 @@ type ReplaceResult
         }
 
 
+{-| CommitAcknowledgement is part of the typed atomic replacement contract.
+-}
 type CommitAcknowledgement
     = NoRenameAcknowledgement
     | RenameWasAcknowledged
 
 
+{-| Durability is part of the typed atomic replacement contract.
+-}
 type Durability
     = FileAndDirectorySyncAcknowledged
     | DurabilityUnconfirmed DurabilityStage Error
 
 
+{-| DurabilityStage is part of the typed atomic replacement contract.
+-}
 type DurabilityStage
     = OpeningParent
     | SyncingParent
     | ClosingParent
 
 
+{-| Cleanup is part of the typed atomic replacement contract.
+-}
 type Cleanup
     = CleanupAcknowledged
     | CleanupIncomplete (List Residue)
 
 
+{-| Residue is part of the typed atomic replacement contract.
+-}
 type Residue
     = TempMayRemain
     | TempDescriptorMayRemain
     | ParentDescriptorMayRemain
 
 
+{-| ReplaceFailure is part of the typed atomic replacement contract.
+-}
 type ReplaceFailure
     = ReplaceFailure
         { commit : CommitAcknowledgement
@@ -82,6 +110,8 @@ type ReplaceFailure
         }
 
 
+{-| FailurePhase is part of the typed atomic replacement contract.
+-}
 type FailurePhase
     = Validating
     | CheckingParent
@@ -96,6 +126,8 @@ type FailurePhase
     | CleaningTemp
 
 
+{-| Error is part of the typed atomic replacement contract.
+-}
 type Error
     = Error
         { kind : ErrorKind
@@ -104,6 +136,8 @@ type Error
         }
 
 
+{-| ErrorKind is part of the typed atomic replacement contract.
+-}
 type ErrorKind
     = NotFound
     | PermissionDenied
@@ -137,21 +171,29 @@ type alias RawFailure =
     }
 
 
+{-| cooperativeRoot is part of the typed atomic replacement contract.
+-}
 cooperativeRoot : String -> Result RootError CooperativeRoot
 cooperativeRoot =
     Path.cooperativeRoot
 
 
+{-| relativeFile is part of the typed atomic replacement contract.
+-}
 relativeFile : List String -> Result PathError RelativeFile
 relativeFile =
     Path.relativeFile
 
 
+{-| relativeSegments is part of the typed atomic replacement contract.
+-}
 relativeSegments : RelativeFile -> List String
 relativeSegments =
     Path.relativeSegments
 
 
+{-| replace is part of the typed atomic replacement contract.
+-}
 replace : CooperativeRoot -> RelativeFile -> String -> Task ReplaceFailure ReplaceResult
 replace root file text =
     Elm.Kernel.SchelmAtomicText.replace (Path.rootString root) (Path.relativeSegments file) text
@@ -315,21 +357,29 @@ decodeErrorKind raw =
             UnknownFailure
 
 
+{-| errorKind is part of the typed atomic replacement contract.
+-}
 errorKind : Error -> ErrorKind
 errorKind (Error details) =
     details.kind
 
 
+{-| errorCode is part of the typed atomic replacement contract.
+-}
 errorCode : Error -> Maybe String
 errorCode (Error details) =
     details.code
 
 
+{-| errorMessage is part of the typed atomic replacement contract.
+-}
 errorMessage : Error -> String
 errorMessage (Error details) =
     details.message
 
 
+{-| cleanupResidue is part of the typed atomic replacement contract.
+-}
 cleanupResidue : Cleanup -> List Residue
 cleanupResidue cleanup =
     case cleanup of
@@ -340,21 +390,29 @@ cleanupResidue cleanup =
             residue
 
 
+{-| failureCommit is part of the typed atomic replacement contract.
+-}
 failureCommit : ReplaceFailure -> CommitAcknowledgement
 failureCommit (ReplaceFailure details) =
     details.commit
 
 
+{-| failurePhase is part of the typed atomic replacement contract.
+-}
 failurePhase : ReplaceFailure -> FailurePhase
 failurePhase (ReplaceFailure details) =
     details.phase
 
 
+{-| failureError is part of the typed atomic replacement contract.
+-}
 failureError : ReplaceFailure -> Error
 failureError (ReplaceFailure details) =
     details.error
 
 
+{-| failureCleanup is part of the typed atomic replacement contract.
+-}
 failureCleanup : ReplaceFailure -> Cleanup
 failureCleanup (ReplaceFailure details) =
     details.cleanup
