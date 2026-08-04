@@ -27,6 +27,30 @@ tests =
 
                     _ ->
                         Expect.fail "unexpected root validation result"
+        , test "friendly root and file recipes use the existing validators" <|
+            \_ ->
+                ( Path.root "/root" |> Result.map Path.rootString
+                , Path.file "state.json" |> Result.map Path.relativeSegments
+                , Path.fileAt [ "sessions", "current.json" ] |> Result.map Path.relativeSegments
+                )
+                    |> Expect.equal
+                        ( Ok "/root"
+                        , Ok [ "state.json" ]
+                        , Ok [ "sessions", "current.json" ]
+                        )
+        , test "compatibility names retain identical results" <|
+            \_ ->
+                { root = Path.root "/root" |> Result.map Path.rootString
+                , cooperativeRoot = Path.cooperativeRoot "/root" |> Result.map Path.rootString
+                , fileAt = Path.fileAt [ "a", "b" ] |> Result.map Path.relativeSegments
+                , relativeFile = Path.relativeFile [ "a", "b" ] |> Result.map Path.relativeSegments
+                }
+                    |> Expect.equal
+                        { root = Ok "/root"
+                        , cooperativeRoot = Ok "/root"
+                        , fileAt = Ok [ "a", "b" ]
+                        , relativeFile = Ok [ "a", "b" ]
+                        }
         ]
 
 

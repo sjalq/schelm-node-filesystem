@@ -1,13 +1,97 @@
-# schelm-node-filesystem
+# Atomic text replacement for Elm on Node
 
-Private Schelm kernel package. V1 exposes
-`Schelm.Node.FileSystem.AtomicText` for cooperative, same-directory replacement
-of one complete UTF-8 text file and `Schelm.Node.FileSystem.Path` for opaque,
-validated cooperative paths on Node 24.4.1/Linux x86_64/ext4.
+`Schelm.Node.FileSystem.AtomicText` replaces one complete UTF-8 text file while
+keeping the old complete file visible until the replacement is installed.
 
-`CooperativeRoot` is not authorization. Path/symlink checks are TOCTOU-prone and
-are not a security boundary. The caller must own a stable parent directory and
-be the sole process writing the destination.
+Despite the historical repository name, v1 is **not a general filesystem API**.
+It does not read files, append, manage directories, stream bytes, or provide a
+security sandbox.
+
+## The common path
+
+Choose an application-owned root once, choose a file beneath it, then replace it:
+
+```elm
+import Schelm.Node.FileSystem.AtomicText as AtomicText
+import Task exposing (Task)
+
+save :
+    AtomicText.CooperativeRoot
+    -> AtomicText.RelativeFile
+    -> String
+    -> Task AtomicText.DurableReplaceError ()
+save appRoot stateFile text =
+    AtomicText.replaceDurably appRoot stateFile text
+
+appRoot : Result AtomicText.RootError AtomicText.CooperativeRoot
+appRoot =
+    AtomicText.root "/var/lib/my-app"
+
+stateFile : Result AtomicText.PathError AtomicText.RelativeFile
+stateFile =
+    AtomicText.file "state.json"
+```
+
+For a nested path, keep each segment explicit:
+
+```elm
+AtomicText.fileAt [ "sessions", "current.json" ]
+```
+
+`replaceDurably` succeeds only after installation, file and containing-directory
+sync, and cleanup have all been acknowledged.
+
+## Recovery is part of the type
+
+A failed durable replacement says what is known:
+
+```elm
+case problem of
+    AtomicText.ReplacementNotAcknowledged failure ->
+        -- It may still have physically occurred. Inspect before retrying.
+        inspectDestination
+
+    AtomicText.ReplacementInstalledButDurabilityUnconfirmed stage error cleanup ->
+        -- New text is installed but not proven durable. Reconcile explicitly.
+        reconcileInstalledFile
+
+    AtomicText.ReplacementDurableButCleanupIncomplete residue ->
+        -- New text is durable. Do not rewrite it just to retry cleanup.
+        reportCleanupResidue residue
+```
+
+Use `durableErrorMessage`, `rootErrorMessage`, and `pathErrorMessage` for friendly
+display text. Branch on constructors rather than parsing messages.
+
+## Advanced result
+
+Use `AtomicText.replace` when your application has a custom recovery policy. It
+keeps three facts separate:
+
+1. whether rename installation was acknowledged;
+2. whether file and containing-directory durability was acknowledged;
+3. whether cleanup was acknowledged.
+
+No rename acknowledgement does **not** prove that the physical rename did not
+occur. A durable replacement may still report cleanup residue. The convenience
+helper is derived from this result; there is only one transaction.
+
+## Preconditions
+
+This package is intentionally cooperative:
+
+- `CooperativeRoot` is publicly mintable and prevents accidental root mixing;
+  it is not security authority.
+- The application must own the root and keep the destination parent directory
+  at the same pathname throughout an operation.
+- Exactly one process may write the destination. There is no package lock or
+  queue.
+- Path and symlink checks are TOCTOU-prone and do not contain a hostile local
+  process.
+- Text with unpaired UTF-16 surrogates is rejected before filesystem effects.
+- The supported platform is Node 24.4.1, Linux x86_64, and ext4.
+
+The compatibility names `cooperativeRoot` and `relativeFile` remain available.
 
 ## Toolchain
 
@@ -17,14 +101,14 @@ be the sole process writing the destination.
 
 ## Verification
 
+Run the full bounded package evidence matrix:
+
 ```sh
-node scripts/assemble-kernels.cjs --check
-node --test tests/node/*.test.cjs
-node tests/artifact-gate.cjs
-node tests/perf/atomic-replace-bench.cjs
+npm test
 ```
 
-`node scripts/build-fixtures.cjs` builds debug/optimized generated Elm workers
-when the pinned Schelm compiler binary exists. It fails explicitly otherwise.
-The production kernel is assembled with fixture observation lines removed; CI
-greps the generated production artifact and checks a positive-control fixture.
+That includes Elm properties, transaction/model tests, real debug and optimized
+Elm workers, real OS tests, fixture-free production artifact checks, archive
+reproducibility, and bounded performance gates. The production kernel is
+assembled from the same transaction source as the instrumented fixture and is
+mechanically checked to contain no fixture hooks.
