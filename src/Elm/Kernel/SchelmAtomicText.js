@@ -1,4 +1,4 @@
-/* generated; canonical-sha256 e2c9ae5f4f345d836df90dfc2fc02757df5305efb10e179f53521cab358ebe04; fixture=false */
+/* generated; canonical-sha256 3abee43f9db5d81b454bd046f7229ff3ffe714ebb41472c91b7b71390172897e; fixture=false */
 /*
 import Elm.Kernel.List exposing (fromArray, toArray)
 import Elm.Kernel.Scheduler exposing (binding, fail, succeed)
@@ -16,6 +16,10 @@ async function schelmAtomicTextTransaction(options) {
   let renameAcknowledged = false;
   let phase = "validating";
 
+  const abandonedError = () => Object.assign(new Error("Elm task abandoned"), { code: "SCHELM_ABANDONED", abandoned: true });
+  const stopBeforeRenameIfAbandoned = () => {
+    if (control.abandoned && !renameAcknowledged) throw abandonedError();
+  };
   const errorFact = (value) => {
     const source = value && typeof value === "object" ? value : {};
     const code = typeof source.code === "string" ? source.code : "";
@@ -28,14 +32,11 @@ async function schelmAtomicTextTransaction(options) {
     };
     return { kind: kinds[code] || "unknown-failure", code, message };
   };
-
   const validate = () => {
     if (typeof root !== "string" || !root.startsWith("/") || root.includes("\0")) throw Object.assign(new Error("invalid cooperative root"), { code: "EINVAL" });
     if (!Array.isArray(segments) || segments.length === 0) throw Object.assign(new Error("empty relative file"), { code: "EINVAL" });
     for (const part of segments) {
-      if (typeof part !== "string" || !part || part === "." || part === ".." || part.includes("\0") || part.includes("/") || part.includes("\\")) {
-        throw Object.assign(new Error("invalid relative file segment"), { code: "EINVAL" });
-      }
+      if (typeof part !== "string" || !part || part === "." || part === ".." || part.includes("\0") || part.includes("/") || part.includes("\\")) throw Object.assign(new Error("invalid relative file segment"), { code: "EINVAL" });
     }
     if (typeof text !== "string") throw Object.assign(new Error("text must be a string"), { code: "EINVAL" });
     for (let i = 0; i < text.length; i += 1) {
@@ -44,18 +45,25 @@ async function schelmAtomicTextTransaction(options) {
         const next = text.charCodeAt(i + 1);
         if (!(next >= 0xdc00 && next <= 0xdfff)) throw Object.assign(new Error("unpaired UTF-16 high surrogate"), { code: "EINVAL" });
         i += 1;
-      } else if (c >= 0xdc00 && c <= 0xdfff) {
-        throw Object.assign(new Error("unpaired UTF-16 low surrogate"), { code: "EINVAL" });
-      }
+      } else if (c >= 0xdc00 && c <= 0xdfff) throw Object.assign(new Error("unpaired UTF-16 low surrogate"), { code: "EINVAL" });
     }
   };
-
+  const closeTempOnce = async () => {
+    if (!tempHandle) return;
+    const handle = tempHandle;
+    tempHandle = null;
+    residue.add("temp-fd");
+    try { await handle.close(); residue.delete("temp-fd"); } catch (_) {}
+  };
+  const closeParentOnce = async () => {
+    if (!parentHandle) return;
+    const handle = parentHandle;
+    parentHandle = null;
+    residue.add("parent-fd");
+    try { await handle.close(); residue.delete("parent-fd"); } catch (_) {}
+  };
   const cleanupBeforeRename = async () => {
-    if (tempHandle) {
-      residue.add("temp-fd");
-      try { await tempHandle.close(); residue.delete("temp-fd"); } catch (_) {}
-      tempHandle = null;
-    }
+    await closeTempOnce();
     if (tempPath && residue.has("temp")) {
       try {
         await ops.unlink(tempPath); residue.delete("temp");
@@ -65,37 +73,39 @@ async function schelmAtomicTextTransaction(options) {
 
   try {
     validate();
+    stopBeforeRenameIfAbandoned();
     const destination = ops.join(root, ...segments);
     const parent = ops.dirname(destination);
     phase = "checking-parent";
     let cursor = root;
     for (const part of segments.slice(0, -1)) {
+      stopBeforeRenameIfAbandoned();
       cursor = ops.join(cursor, part);
       const stat = await ops.lstat(cursor);
       if (stat.isSymbolicLink()) throw Object.assign(new Error("symbolic-link parent rejected"), { code: "ELOOP" });
       if (!stat.isDirectory()) throw Object.assign(new Error("parent is not a directory"), { code: "ENOTDIR" });
     }
+    stopBeforeRenameIfAbandoned();
     try {
       const destStat = await ops.lstat(destination);
       if (destStat.isSymbolicLink()) throw Object.assign(new Error("symbolic-link destination rejected"), { code: "ELOOP" });
       if (destStat.isDirectory()) throw Object.assign(new Error("destination is a directory"), { code: "EISDIR" });
-    } catch (error) {
-      if (!error || error.code !== "ENOENT") throw error;
-    }
+    } catch (error) { if (!error || error.code !== "ENOENT") throw error; }
 
     const bytes = Buffer.from(text, "utf8");
     phase = "opening-temp";
     for (let attempt = 0; attempt < 16; attempt += 1) {
+      stopBeforeRenameIfAbandoned();
       tempPath = ops.join(parent, `.${ops.basename(destination)}.schelm-${randomHex()}`);
       residue.add("temp");
       try {
+        stopBeforeRenameIfAbandoned();
         tempHandle = await ops.open(tempPath, "wx", 0o666);
         residue.add("temp-fd");
         break;
       } catch (error) {
         if (error && error.code === "EEXIST") {
-          residue.delete("temp");
-          tempPath = null;
+          residue.delete("temp"); tempPath = null;
           if (attempt < 15) continue;
         }
         throw error;
@@ -106,46 +116,53 @@ async function schelmAtomicTextTransaction(options) {
     phase = "writing-temp";
     let offset = 0;
     while (offset < bytes.length) {
-      const result = await tempHandle.write(bytes, offset, bytes.length - offset, offset);
+      stopBeforeRenameIfAbandoned();
+      stopBeforeRenameIfAbandoned();
+      let writeLength = bytes.length - offset;
+      const result = await tempHandle.write(bytes, offset, writeLength, offset);
       const written = result && Number(result.bytesWritten);
       if (!Number.isInteger(written) || written <= 0) throw Object.assign(new Error("write made no progress"), { code: "EIO" });
       offset += written;
     }
 
+    stopBeforeRenameIfAbandoned();
     phase = "syncing-temp";
+    stopBeforeRenameIfAbandoned();
     await tempHandle.sync();
+    stopBeforeRenameIfAbandoned();
     phase = "closing-temp";
-    await tempHandle.close(); tempHandle = null; residue.delete("temp-fd");
+    const closingTemp = tempHandle;
+    tempHandle = null;
+    await closingTemp.close(); residue.delete("temp-fd");
 
+    stopBeforeRenameIfAbandoned();
     phase = "renaming";
+    stopBeforeRenameIfAbandoned();
     await ops.rename(tempPath, destination);
     renameAcknowledged = true; residue.delete("temp");
 
     phase = "opening-parent";
     try {
       parentHandle = await ops.open(parent, "r"); residue.add("parent-fd");
-    } catch (error) {
-      return { ok: true, durability: "unknown", stage: "opening-parent", error: errorFact(error), residue: Array.from(residue) };
-    }
+    } catch (error) { return { ok: true, durability: "unknown", stage: "opening-parent", error: errorFact(error), residue: Array.from(residue) }; }
 
     phase = "syncing-parent";
     try {
       await parentHandle.sync();
     } catch (error) {
-      try { await parentHandle.close(); residue.delete("parent-fd"); } catch (_) {}
+      await closeParentOnce();
       return { ok: true, durability: "unknown", stage: "syncing-parent", error: errorFact(error), residue: Array.from(residue) };
     }
 
     phase = "closing-parent";
-    try {
-      await parentHandle.close(); residue.delete("parent-fd");
-    } catch (_) {
-      return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
-    }
-    return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: [] };
+    const closingParent = parentHandle;
+    parentHandle = null;
+    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (_) {}
+    return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();
-    return { ok: false, phase, error: errorFact(error), residue: Array.from(residue) };
+    if (renameAcknowledged) await closeParentOnce();
+    return { ok: false, abandoned: !!(error && error.abandoned), phase, error: errorFact(error), residue: Array.from(residue) };
   }
 }
 

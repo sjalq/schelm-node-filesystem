@@ -29,7 +29,7 @@ function makeFakeFs(plan = {}) {
         return {
           async write(buffer, offset, length, position) {
             const chosen = await hit("write", { path: p, offset, length, position, id });
-            const n = chosen && Number.isInteger(chosen.short) ? chosen.short : length;
+            const n = chosen && Number.isInteger(chosen.short) ? Math.max(0, Math.min(length, chosen.short)) : length;
             const old = files.get(p) || Buffer.alloc(0);
             const size = Math.max(old.length, position + n);
             const next = Buffer.alloc(size); old.copy(next); buffer.copy(next, position, offset, offset + n); files.set(p, next);

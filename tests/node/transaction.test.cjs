@@ -61,3 +61,49 @@ test("generated command traces preserve old-or-complete-new", async () => {
     if (out.ok && out.durability === "durable") assert.equal(actual, payload);
   }
 });
+
+test("abandonment before rename stops new effects, cleans, and is never a success", async () => {
+  const fake = makeFakeFs();
+  const control = { abandoned: false };
+  const seen = [];
+  const out = await run({ ...opts(fake, "payload"), control, observe: async event => {
+    seen.push(event.phase);
+    if (event.phase === "AfterTempOpenAck") control.abandoned = true;
+    return { type: "Continue" };
+  }});
+  assert.equal(out.ok, false); assert.equal(out.abandoned, true);
+  assert.equal(fake.calls.some(x => x.name === "write" || x.name === "rename"), false);
+  assert.equal([...fake.files.keys()].some(p => p.includes(".schelm-")), false);
+});
+
+test("abandonment while rename callback is in flight permits physical commit but suppresses later policy", async () => {
+  const control = { abandoned: false };
+  const fake = makeFakeFs({ rename: async () => { control.abandoned = true; } });
+  const out = await run({ ...opts(fake, "committed"), control, observe: async () => ({ type: "Continue" }) });
+  assert.equal(out.ok, true); assert.equal(fake.files.get("/root/session/state.json").toString(), "committed");
+});
+
+test("an acquired temp handle is closed at most once after close error", async () => {
+  const fake = makeFakeFs({ tempClose: { error: "EIO" } });
+  const out = await run(opts(fake));
+  assert.equal(out.ok, false);
+  assert.equal(fake.calls.filter(x => x.name === "tempClose").length, 1);
+  assert.ok(out.residue.includes("temp-fd"));
+});
+
+test("sixteen collisions fail without unlinking somebody else's files", async () => {
+  const names = Array.from({ length: 16 }, (_, i) => `${i}`.padStart(32, "0"));
+  const files = names.map(n => [`/root/session/.state.json.schelm-${n}`, Buffer.from("owned")]);
+  const fake = makeFakeFs({ files }); let index = 0;
+  const out = await run({ ...opts(fake), randomHex: () => names[index++] });
+  assert.equal(out.ok, false); assert.equal(fake.calls.filter(x => x.name === "open").length, 16);
+  assert.equal(fake.calls.filter(x => x.name === "unlink").length, 0);
+  assert.equal(files.every(([p]) => fake.files.get(p).toString() === "owned"), true);
+});
+
+test("one logical transaction resolves once", async () => {
+  const fake = makeFakeFs(); let settled = 0;
+  await run(opts(fake)).then(() => { settled += 1; }, () => { settled += 1; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, 1);
+});
