@@ -11,9 +11,10 @@
     "check:assembly": "node scripts/assemble-kernels.cjs --check",
     "test:node": "node --test tests/node/*.test.cjs",
     "test:artifact": "node tests/artifact-gate.cjs",
-    "test": "npm run check:assembly && npm run test:toolchain && npm run test:node && npm run test:artifact && npm run test:archive && npm run test:perf && npm run test:elm-workers",
+    "test": "npm run check:assembly && npm run test:toolchain && npm run test:elm && npm run test:node && npm run test:elm-workers && npm run test:artifact && npm run test:archive && npm run test:perf",
     "perf": "node tests/perf/atomic-replace-bench.cjs",
     "test:toolchain": "node tests/toolchain-gate.cjs",
+    "test:elm": "cd tests && ELM_HOME=../build/elm-home /home/s.dormehl/git/agent-harness/node_modules/elm-test/bin/elm-test --compiler /home/s.dormehl/git/elm-compiler/.worktrees/schelm-kernel-author/result/bin/elm elm/*.elm --seed 123456 --fuzz 2000",
     "test:archive": "node tests/archive-repro.cjs",
     "test:perf": "node tests/perf/atomic-replace-bench.cjs --gate",
     "test:elm-workers": "node scripts/build-fixtures.cjs"

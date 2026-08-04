@@ -2,7 +2,7 @@
 import Elm.Kernel.List exposing (fromArray, toArray)
 import Elm.Kernel.Scheduler exposing (binding, fail, succeed)
 */
-/* generated; canonical-sha256 3aedf63dde27f4332394f1cf8da2bb78c89b6a34aa740c04e134287c93770235; fixture=true */
+/* generated; canonical-sha256 e0ce57d3a9fc52da0d5f0cae5087d63bb310eecd18428014e497af2eab81571d; fixture=true */
 var $fs = require("node:fs");
 var $path = require("node:path");
 var $crypto = require("node:crypto");
@@ -184,7 +184,11 @@ async function schelmAtomicTextTransaction(options) {
     /* @fixture */ await observe("BeforeParentClose");
     const closingParent = parentHandle;
     parentHandle = null;
-    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (ignoredError) {}
+    try {
+      await closingParent.close();
+      residue.delete("parent-fd");
+      /* @fixture */ await observe("AfterParentCloseAck");
+    } catch (ignoredError) {}
     return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();

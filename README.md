@@ -1,8 +1,9 @@
 # schelm-node-filesystem
 
-Private Schelm kernel package. V1 deliberately exposes only
-`Schelm.Node.FileSystem.AtomicText`: cooperative, same-directory replacement of
-one complete UTF-8 text file on Node 24.4.1/Linux x86_64/ext4.
+Private Schelm kernel package. V1 exposes
+`Schelm.Node.FileSystem.AtomicText` for cooperative, same-directory replacement
+of one complete UTF-8 text file and `Schelm.Node.FileSystem.Path` for opaque,
+validated cooperative paths on Node 24.4.1/Linux x86_64/ext4.
 
 `CooperativeRoot` is not authorization. Path/symlink checks are TOCTOU-prone and
 are not a security boundary. The caller must own a stable parent directory and

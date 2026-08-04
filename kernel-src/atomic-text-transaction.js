@@ -179,7 +179,11 @@ async function schelmAtomicTextTransaction(options) {
     /* @fixture */ await observe("BeforeParentClose");
     const closingParent = parentHandle;
     parentHandle = null;
-    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (ignoredError) {}
+    try {
+      await closingParent.close();
+      residue.delete("parent-fd");
+      /* @fixture */ await observe("AfterParentCloseAck");
+    } catch (ignoredError) {}
     return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();

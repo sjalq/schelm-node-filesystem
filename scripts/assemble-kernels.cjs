@@ -10,7 +10,9 @@ const functionStart = canonical.indexOf("async function schelmAtomicTextTransact
 const exportStart = canonical.indexOf("\nmodule.exports =");
 if (functionStart < 0 || exportStart < 0) throw new Error("canonical transaction markers missing");
 const body = canonical.slice(functionStart, exportStart);
-const productionBody = body.replace(/^\s*\/\* @fixture \*\/.*\n/gm, "");
+const fixtureMarker = /\/\* @fixture \*\/[^\n]*(?:\n|$)/g;
+const productionBody = body.replace(fixtureMarker, "").replace(/[ \t]+$/gm, "");
+if (productionBody.includes("@fixture")) throw new Error("unstripped fixture marker");
 if (productionBody.includes("options.observe") || productionBody.includes("BeforeTempOpen") || productionBody.includes("AfterRenameAck")) throw new Error("fixture observation leaked into production body");
 const header = (fixture) => `/*\nimport Elm.Kernel.List exposing (fromArray, toArray)\nimport Elm.Kernel.Scheduler exposing (binding, fail, succeed)\n*/\n/* generated; canonical-sha256 ${hash}; fixture=${fixture} */\nvar $fs = require("node:fs");\nvar $path = require("node:path");\nvar $crypto = require("node:crypto");\n`;
 const ops = `\nfunction $schelmOps() { return {\n  join: $path.join, dirname: $path.dirname, basename: $path.basename,\n  lstat: function(p) { return $fs.promises.lstat(p); },\n  open: function(p, flags, mode) { return $fs.promises.open(p, flags, mode); },\n  rename: function(a, b) { return $fs.promises.rename(a, b); },\n  unlink: function(p) { return $fs.promises.unlink(p); }\n}; }\nfunction $schelmHex() { return $crypto.randomBytes(16).toString("hex"); }\n`;

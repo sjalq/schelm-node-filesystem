@@ -2,7 +2,7 @@
 import Elm.Kernel.List exposing (fromArray, toArray)
 import Elm.Kernel.Scheduler exposing (binding, fail, succeed)
 */
-/* generated; canonical-sha256 3aedf63dde27f4332394f1cf8da2bb78c89b6a34aa740c04e134287c93770235; fixture=false */
+/* generated; canonical-sha256 e0ce57d3a9fc52da0d5f0cae5087d63bb310eecd18428014e497af2eab81571d; fixture=false */
 var $fs = require("node:fs");
 var $path = require("node:path");
 var $crypto = require("node:crypto");
@@ -66,8 +66,8 @@ async function schelmAtomicTextTransaction(options) {
     await closeTempOnce();
     if (tempPath && residue.has("temp")) {
       try {
-        await ops.unlink(tempPath); residue.delete("temp");
-      } catch (ignoredError) {}
+                await ops.unlink(tempPath); residue.delete("temp");
+              } catch (ignoredError) {}
     }
   };
 
@@ -99,10 +99,10 @@ async function schelmAtomicTextTransaction(options) {
       tempPath = ops.join(parent, `.${ops.basename(destination)}.schelm-${randomHex()}`);
       residue.add("temp");
       try {
-        stopBeforeRenameIfAbandoned();
+                stopBeforeRenameIfAbandoned();
         tempHandle = await ops.open(tempPath, "wx", 0o666);
         residue.add("temp-fd");
-        break;
+                break;
       } catch (error) {
         if (error && error.code === "EEXIST") {
           residue.delete("temp"); tempPath = null;
@@ -117,47 +117,50 @@ async function schelmAtomicTextTransaction(options) {
     let offset = 0;
     while (offset < bytes.length) {
       stopBeforeRenameIfAbandoned();
-      stopBeforeRenameIfAbandoned();
+            stopBeforeRenameIfAbandoned();
       let writeLength = bytes.length - offset;
-      const result = await tempHandle.write(bytes, offset, writeLength, offset);
+            const result = await tempHandle.write(bytes, offset, writeLength, offset);
       const written = result && Number(result.bytesWritten);
       if (!Number.isInteger(written) || written <= 0) throw Object.assign(new Error("write made no progress"), { code: "EIO" });
       offset += written;
-    }
+          }
 
     stopBeforeRenameIfAbandoned();
     phase = "syncing-temp";
-    stopBeforeRenameIfAbandoned();
+        stopBeforeRenameIfAbandoned();
     await tempHandle.sync();
-    stopBeforeRenameIfAbandoned();
+        stopBeforeRenameIfAbandoned();
     phase = "closing-temp";
-    const closingTemp = tempHandle;
+        const closingTemp = tempHandle;
     tempHandle = null;
     await closingTemp.close(); residue.delete("temp-fd");
 
     stopBeforeRenameIfAbandoned();
     phase = "renaming";
-    stopBeforeRenameIfAbandoned();
+        stopBeforeRenameIfAbandoned();
     await ops.rename(tempPath, destination);
     renameAcknowledged = true; residue.delete("temp");
 
     phase = "opening-parent";
     try {
-      parentHandle = await ops.open(parent, "r"); residue.add("parent-fd");
-    } catch (error) { return { ok: true, durability: "unknown", stage: "opening-parent", error: errorFact(error), residue: Array.from(residue) }; }
+            parentHandle = await ops.open(parent, "r"); residue.add("parent-fd");
+          } catch (error) { return { ok: true, durability: "unknown", stage: "opening-parent", error: errorFact(error), residue: Array.from(residue) }; }
 
     phase = "syncing-parent";
     try {
-      await parentHandle.sync();
-    } catch (error) {
+            await parentHandle.sync();
+          } catch (error) {
       await closeParentOnce();
       return { ok: true, durability: "unknown", stage: "syncing-parent", error: errorFact(error), residue: Array.from(residue) };
     }
 
     phase = "closing-parent";
-    const closingParent = parentHandle;
+        const closingParent = parentHandle;
     parentHandle = null;
-    try { await closingParent.close(); residue.delete("parent-fd"); /* @fixture */ await observe("AfterParentCloseAck"); } catch (ignoredError) {}
+    try {
+      await closingParent.close();
+      residue.delete("parent-fd");
+          } catch (ignoredError) {}
     return { ok: true, durability: "durable", stage: "", error: errorFact(null), residue: Array.from(residue) };
   } catch (error) {
     if (!renameAcknowledged) await cleanupBeforeRename();
