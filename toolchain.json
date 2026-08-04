@@ -1,0 +1,9 @@
+{
+  "elmCompilerRepository": "sjalq/schelm-elm-compiler",
+  "elmCompilerCommit": "76bbe44424106c96f915cb24cd7f50d69f5cee0e",
+  "elmLanguageVersion": "0.19.2",
+  "baseElmCommit": "48befde196cbcbdf459114e36c02b52c49b58050",
+  "node": "24.4.1",
+  "platform": "linux-x64",
+  "productionFilesystem": "ext4"
+}

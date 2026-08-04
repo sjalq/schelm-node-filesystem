@@ -1,0 +1,15 @@
+{
+  "name": "schelm-node-filesystem",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": "24.4.1" },
+  "scripts": {
+    "assemble": "node scripts/assemble-kernels.cjs",
+    "check:assembly": "node scripts/assemble-kernels.cjs --check",
+    "test:node": "node --test tests/node/*.test.cjs",
+    "test:artifact": "node tests/artifact-gate.cjs",
+    "test": "npm run check:assembly && npm run test:node && npm run test:artifact",
+    "perf": "node tests/perf/atomic-replace-bench.cjs"
+  }
+}
