@@ -2,3 +2,5 @@
 /elm-stuff/
 /tests/elm-stuff/
 /fixtures/package/elm-stuff/
+
+/fixture-apps/*/elm-stuff/
