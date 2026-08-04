@@ -1,0 +1,3 @@
+"use strict";
+const test=require("node:test");const assert=require("node:assert/strict");const {schelmAtomicTextTransaction:run}=require("../../kernel-src/atomic-text-transaction.js");const {makeFakeFs}=require("../support/fake-fs.cjs");
+test("generated hostile path components fail before mutation",async()=>{let seed=123456789;const next=()=>seed=(seed*1103515245+12345)>>>0;const hostile=["",".","..","a/b","a\\b","x\0y"];for(let i=0;i<1000;i++){const fake=makeFakeFs();const bad=hostile[next()%hostile.length];const out=await run({ops:fake.ops,root:"/root",segments:[bad,"x"],text:"x",randomHex:()=>"0".repeat(32),observe:async()=>{}});assert.equal(out.ok,false);assert.equal(fake.calls.length,0);}});

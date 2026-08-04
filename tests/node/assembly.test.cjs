@@ -1,0 +1,3 @@
+"use strict";
+const test = require("node:test"); const assert = require("node:assert/strict"); const fs=require("node:fs"); const cp=require("node:child_process");
+test("generated kernels are current and fixture absent from production",()=>{ cp.execFileSync(process.execPath,["scripts/assemble-kernels.cjs","--check"],{stdio:"pipe"}); const prod=fs.readFileSync("src/Elm/Kernel/SchelmAtomicText.js","utf8"); const fixture=fs.readFileSync("fixtures/package/src/Elm/Kernel/SchelmAtomicTextFixture.js","utf8"); assert.doesNotMatch(prod,/options\.observe|BeforeTempOpen|AfterRenameAck|__SCHELM_ATOMIC_TEXT_FIXTURE/); assert.match(fixture,/BeforeTempOpen/); assert.match(fixture,/AfterRenameAck/); });

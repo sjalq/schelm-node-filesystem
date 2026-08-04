@@ -1,0 +1,2 @@
+"use strict";
+const fs=require("node:fs");const expected={elmCompilerCommit:"76bbe44424106c96f915cb24cd7f50d69f5cee0e",node:"24.4.1",platform:"linux-x64"};const actual=JSON.parse(fs.readFileSync("toolchain.json","utf8"));for(const [k,v] of Object.entries(expected))if(actual[k]!==v)throw new Error(`${k}: expected ${v}, got ${actual[k]}`);if(process.version!=="v24.4.1")throw new Error(`Node v24.4.1 required, got ${process.version}`);console.log("toolchain gate passed");
