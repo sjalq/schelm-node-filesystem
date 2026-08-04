@@ -1,5 +1,8 @@
 # Atomic text replacement for Elm on Node
 
+Current compatible release: `1.1.0`. Existing `1.0.0` callers remain source
+compatible; the ergonomic names and durable recipe are additive.
+
 `Schelm.Node.FileSystem.AtomicText` replaces one complete UTF-8 text file while
 keeping the old complete file visible until the replacement is installed.
 
